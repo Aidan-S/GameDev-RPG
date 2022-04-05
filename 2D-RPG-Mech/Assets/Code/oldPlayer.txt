@@ -1,0 +1,247 @@
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+
+public class Player  MonoBehaviour
+{
+    private BoxCollider2D boxCollider;
+    private Vector3 moveDelta;
+    private SpriteRenderer spriteRenderer;
+    private RaycastHit2D hit;
+    private Camera cam;
+    public GameObject myPrefab;
+    public GameObject swingHitbox;
+    private Animator anim;
+    red fire
+    public GameObject redFire;
+    private Animator redFireAnim;
+    blue fire
+    public GameObject blueFire;
+    private Animator blueFireAnim;
+    purple fire
+    public GameObject purpleFire;
+    private Animator purpleFireAnim;
+
+    private PlayerActionControls playerActionControls;
+
+
+    public int speed;
+
+    private void Awake()
+    {
+        playerActionControls = new PlayerActionControls();
+    }
+
+    private void OnEnable()
+    {
+        playerActionControls.Enable();
+    }
+
+    private void OnDisable()
+    {
+        playerActionControls.Disable();
+    }
+
+    private void Start()
+    {
+        boxCollider = GetComponentBoxCollider2D();
+        spriteRenderer = GetComponentSpriteRenderer();
+        cam = Camera.main;
+        anim = GetComponentAnimator();
+        redFireAnim = redFire.GetComponentAnimator();
+        purpleFireAnim = purpleFire.GetComponentAnimator();
+        blueFireAnim = blueFire.GetComponentAnimator();
+    }
+
+    private void attack()
+    {
+        Instantiate(myPrefab, this.transform.position, Quaternion.identity);
+    }
+
+    private void swing()
+    {
+        swingHitbox.transform.rotation = Quaternion.Euler(0f, 0f, 0f);
+        Vector3 mouseInput = Camera.main.ScreenToWorldPoint(Input.mousePosition) - transform.position;
+        mouseInput.z = 0;
+        mouseInput = Vector3.Normalize(mouseInput);
+        Vector2 a1 = new Vector2(mouseInput.x, mouseInput.y);
+        Vector2 a2 = new Vector2(0, 0);
+       
+        float angle = (Mathf.Atan2(a1.y, a1.x)  180)  Mathf.PI;
+
+        swingHitbox.transform.Rotate(0, 0, angle);
+
+        StartCoroutine(inAndOut());    
+    }
+
+
+    IEnumerator inAndOut()
+    {
+        swingHitbox.transform.GetChild(0).GetComponentSpriteRenderer().enabled = true;
+        yield return new WaitForSeconds(0.1f);
+        swingHitbox.transform.GetChild(0).GetComponentSpriteRenderer().enabled = false;
+    }
+
+    private void Update()
+    {
+         combo();
+        
+         if (Input.GetKeyDown(space))
+         {
+             attack();
+         }
+        
+        float xinput = playerActionControls.Basic.aButton.ReadValuefloat();
+
+        if (xinput == 1)
+        {
+            redFireAnim.SetBool(isLit, !redFireAnim.GetBool(isLit));
+            blueFireAnim.SetBool(isLit, !blueFireAnim.GetBool(isLit));
+            purpleFireAnim.SetBool(isLit, !purpleFireAnim.GetBool(isLit));
+        }
+    }
+
+     private combo()
+     {
+          if (Input.GetKeyDown(space))
+          {
+              attack();
+          }
+     }
+
+    private void FixedUpdate()
+    {
+        Vector2 input = playerActionControls.Basic.Move.ReadValueVector2();
+
+        float x = input.x;
+        float y = input.y;
+        
+        if(!(x == 0 && y == 0))
+        {
+            anim.SetFloat(XInput, x);
+            anim.SetFloat(YInput, y);
+            anim.SetBool(isMoving, true);
+        }
+        else
+        {
+            anim.SetBool(isMoving, false);
+        }
+
+        if(x != 0 && y != 0)
+        {
+            x = x  (float)System.Math.Sqrt(2);
+            y = y  (float)System.Math.Sqrt(2);
+        }
+
+        moveDelta = new Vector3(x, y, 0);
+
+        hit = Physics2D.BoxCast(boxCollider.offset, boxCollider.size, 0, new Vector3(0, moveDelta.y), Mathf.Abs(moveDelta.y  Time.deltaTime  speed), LayerMask.GetMask(Actor, Blocking));
+        if(hit.collider == null)
+        {
+            transform.Translate(0, moveDelta.y  Time.deltaTime  speed, 0);
+        }
+        
+        hit = Physics2D.BoxCast(boxCollider.offset, boxCollider.size, 0, new Vector3(moveDelta.x, 0), Mathf.Abs(moveDelta.x  Time.deltaTime  speed), LayerMask.GetMask(Actor, Blocking));
+        if(hit.collider == null)
+        {
+            transform.Translate(moveDelta.x  Time.deltaTime  speed, 0, 0);
+        }
+    }
+
+}
+
+
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+
+public class sendBullet : MonoBehaviour
+{
+    private Vector3 mouseInput; 
+    public float speed;
+    public GameObject player;
+    
+    // Start is called before the first frame update
+    void Start()
+    {
+        // mouseInput = Camera.main.ScreenToWorldPoint(Input.mousePosition) - transform.position;
+        // mouseInput.z = 0;
+        // mouseInput = Vector3.Normalize(mouseInput);
+    }
+
+    // Update is called once per frame
+    void Update()
+    {
+        transform.Translate(mouseInput.x * Time.deltaTime * speed, mouseInput.y * Time.deltaTime * speed, 0);
+        if(System.Math.Abs((player.transform.position - transform.position).magnitude) > 20)
+        {
+            Destroy (gameObject);
+        }
+    }
+
+    void OnTriggerEnter2D(Collider2D col)
+    {
+        if(col.tag == "Wall")
+        {
+            Destroy (gameObject);
+        }
+    }
+}
+
+
+//
+private void bButton(InputAction.CallbackContext context)
+    {
+        combo("b");
+    }
+    private void wackButton(InputAction.CallbackContext context)
+    {
+        Debug.Log("asdasd");
+    }
+
+    private void xButton(InputAction.CallbackContext context)
+    {
+        combo("x");
+    }
+
+    private void yButton(InputAction.CallbackContext context)
+    {
+        combo("y");
+    }
+
+    private void combo(string v)
+    {
+        //new combo
+        if(comboTimer == -1)
+        {
+            comboTimer = Time.time;
+            comboValue = v;
+        }
+        //continue combo
+        else
+        {
+            //good combo
+            if(comboValue.IndexOf(v) == -1 && Time.time - comboTimer < 0.7f)
+            {
+                comboValue += v;
+                comboTimer = Time.time;
+            }
+            //failed combo
+            else
+            {
+                resetCombo();
+            }
+        }
+
+        if(comboValue.Length == 3)
+        {
+            Debug.Log(comboValue);
+            resetCombo();
+        }
+    }
+
+    private void resetCombo()
+    {
+        comboTimer = -1;
+        comboValue = "";
+    }

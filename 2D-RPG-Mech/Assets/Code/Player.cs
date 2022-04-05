@@ -1,16 +1,15 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.InputSystem;
 
 public class Player : MonoBehaviour
 {
     private BoxCollider2D boxCollider;
     private Vector3 moveDelta;
-    private SpriteRenderer spriteRenderer;
     private RaycastHit2D hit;
-    private Camera cam;
-    public GameObject myPrefab;
-    public GameObject swingHitbox;
+
+    //player animation
     private Animator anim;
     //red fire
     public GameObject redFire;
@@ -22,68 +21,236 @@ public class Player : MonoBehaviour
     public GameObject purpleFire;
     private Animator purpleFireAnim;
 
+    //input system
+    private PlayerActionControls playerControls;
+    private InputAction move;
+    private InputAction a_Button;
+    private InputAction b_Button;
+    private InputAction x_Button;
+    private InputAction y_Button;
+
+    //player speed
     public int speed;
+
+    //player combo
+    public enum comboStatus { noCombo, hold, combo };
+
+    public float comboTimer;
+    public string comboValue;
+
+    public float bStartTime;
+    public float xStartTime;
+    public float yStartTime;
+
+    public comboStatus mode;
+
+    private void Awake()
+    {
+        playerControls = new PlayerActionControls();
+    }
+
+    private void OnEnable()
+    {
+        move = playerControls.Basic.Move;
+        move.Enable();
+
+        a_Button = playerControls.Basic.aButton;
+        a_Button.Enable();
+        a_Button.performed += aButton;
+
+
+        b_Button = playerControls.Basic.bButton;
+        b_Button.Enable();
+        b_Button.performed += bButtonDown;
+        b_Button.canceled += bButtonUp;
+
+
+        x_Button = playerControls.Basic.xButton;
+        x_Button.Enable();
+        x_Button.performed += xButtonDown;
+        x_Button.canceled += xButtonUp;
+
+
+        y_Button = playerControls.Basic.yButton;
+        y_Button.Enable();
+        y_Button.performed += yButtonDown;
+        y_Button.canceled += yButtonUp;
+
+    }
+
+    private void OnDisable()
+    {
+        move.Disable();
+        a_Button.Disable();
+        b_Button.Disable();
+        x_Button.Disable();
+        y_Button.Disable();
+    }
 
     private void Start()
     {
         boxCollider = GetComponent<BoxCollider2D>();
-        spriteRenderer = GetComponent<SpriteRenderer>();
-        cam = Camera.main;
         anim = GetComponent<Animator>();
         redFireAnim = redFire.GetComponent<Animator>();
         purpleFireAnim = purpleFire.GetComponent<Animator>();
         blueFireAnim = blueFire.GetComponent<Animator>();
+        comboTimer = -1;
+        comboValue = "";
+        mode = comboStatus.noCombo;
     }
 
-    private void attack()
+    private void aButton(InputAction.CallbackContext context)
     {
-        Instantiate(myPrefab, this.transform.position, Quaternion.identity);
+        redFireAnim.SetBool("isLit", !redFireAnim.GetBool("isLit"));
+        blueFireAnim.SetBool("isLit", !blueFireAnim.GetBool("isLit"));
+        purpleFireAnim.SetBool("isLit", !purpleFireAnim.GetBool("isLit"));
     }
 
-    private void swing()
+    private void bButtonUp(InputAction.CallbackContext context)
     {
-        swingHitbox.transform.rotation = Quaternion.Euler(0f, 0f, 0f);
-        Vector3 mouseInput = Camera.main.ScreenToWorldPoint(Input.mousePosition) - transform.position;
-        mouseInput.z = 0;
-        mouseInput = Vector3.Normalize(mouseInput);
-        Vector2 a1 = new Vector2(mouseInput.x, mouseInput.y);
-        Vector2 a2 = new Vector2(0, 0);
-       
-        float angle = (Mathf.Atan2(a1.y, a1.x) * 180) / Mathf.PI;
+        if(mode == comboStatus.hold && Time.time - bStartTime < .4)
+        {
+            mode = comboStatus.combo;
+        }
+        else if (mode == comboStatus.hold && Time.time - bStartTime > .4)
+        {
+            mode = comboStatus.noCombo;
+        }
 
-        swingHitbox.transform.Rotate(0, 0, angle);
-
-        StartCoroutine(inAndOut());    
+        bStartTime = 0;
     }
 
-
-    IEnumerator inAndOut()
+    private void xButtonUp(InputAction.CallbackContext context)
     {
-        swingHitbox.transform.GetChild(0).GetComponent<SpriteRenderer>().enabled = true;
-        yield return new WaitForSeconds(0.1f);
-        swingHitbox.transform.GetChild(0).GetComponent<SpriteRenderer>().enabled = false;
+        if (mode == comboStatus.hold && Time.time - xStartTime < .4)
+        {
+            mode = comboStatus.combo;
+        }
+        else if(mode == comboStatus.hold && Time.time - xStartTime > .4)
+        {
+            mode = comboStatus.noCombo;
+        }
+
+        xStartTime = 0;
+    }
+
+    private void yButtonUp(InputAction.CallbackContext context)
+    {
+        if (mode == comboStatus.hold && Time.time - yStartTime < .4)
+        {
+            mode = comboStatus.combo;
+        }
+        else if (mode == comboStatus.hold && Time.time - yStartTime > .4)
+        {
+            mode = comboStatus.noCombo;
+        }
+
+        yStartTime = 0;
+    }
+
+    private void bButtonDown(InputAction.CallbackContext context)
+    {
+        bStartTime = Time.time;
+        if (comboValue == "")
+        {
+            mode = comboStatus.hold;
+        }
+        combo("b");
+    }
+
+    private void xButtonDown(InputAction.CallbackContext context)
+    {
+        xStartTime = Time.time;
+        if (comboValue == "")
+        {
+            mode = comboStatus.hold;
+        }
+        combo("x");
+    }
+
+    private void yButtonDown(InputAction.CallbackContext context)
+    {
+        yStartTime = Time.time;
+        if (comboValue == "")
+        {
+            mode = comboStatus.hold;
+        }
+        combo("y");
+    }
+
+    private void combo(string v)
+    {
+        //new combo
+        if (comboTimer == -1)
+        {
+            comboTimer = Time.time;
+            comboValue = v;
+        }
+        //continue combo
+        else
+        {
+            //good combo
+            if (comboValue.IndexOf(v) == -1)
+            {
+                comboValue += v;
+                comboTimer = Time.time;
+            }
+            //failed combo
+            else
+            {
+                resetCombo();
+            }
+        }
+
+        if (comboValue.Length == 3)
+        {
+            Debug.Log("I did this combo: " + comboValue);
+            resetCombo();
+        }
+    }
+
+    private void resetCombo()
+    {
+        comboTimer = -1;
+        comboValue = "";
+        mode = comboStatus.noCombo;
     }
 
     private void Update()
     {
-        if (Input.GetKeyDown("space"))
+        if (comboTimer != -1 && Time.time - comboTimer > 0.7f && mode != comboStatus.hold)
         {
-            attack();
+            resetCombo();
         }
 
-        if (Input.GetKeyDown("z"))
+        if (comboValue == "b" && bStartTime != 0 && Time.time - bStartTime >= 2f)
         {
-            redFireAnim.SetBool("isLit", !redFireAnim.GetBool("isLit"));
-            blueFireAnim.SetBool("isLit", !blueFireAnim.GetBool("isLit"));
-            purpleFireAnim.SetBool("isLit", !purpleFireAnim.GetBool("isLit"));
+            //strong attack
+            Debug.Log("strong b");
+            resetCombo();
+        }
+
+        if (comboValue == "x" && xStartTime != 0 && Time.time - xStartTime >= 2f)
+        {
+            //strong attack
+            Debug.Log("strong x");
+            resetCombo();
+        }
+
+        if (comboValue == "y" && yStartTime != 0 && Time.time - yStartTime >= 2f)
+        {
+            //strong attack
+            Debug.Log("strong y");
+            resetCombo();
         }
     }
 
     private void FixedUpdate()
     {
+        Vector2 input = move.ReadValue<Vector2>();
 
-        float x = Input.GetAxisRaw("Horizontal");
-        float y = Input.GetAxisRaw("Vertical");
+        float x = input.x;
+        float y = input.y;
         
         if(!(x == 0 && y == 0))
         {
